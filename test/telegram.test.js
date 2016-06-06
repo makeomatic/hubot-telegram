@@ -1,3 +1,4 @@
+var Promise = require('bluebird');
 var hubot = require('./hubot.stub');
 var telegram = require('./../src/telegram').use(hubot);
 var assert = require("assert");
@@ -58,43 +59,43 @@ describe('Telegram', function() {
 
         it("should automatically add the markdown option if the text contains markdown characters", function () {
 
-            var message = { text: "normal" }
-            message = telegram.applyExtraOptions(message);
+            var message = {}
+            message = telegram.applyExtraOptions("normal", message);
             assert(typeof message.parse_mode === 'undefined');
 
-            message = { text: "markdown *message*" }
-            message = telegram.applyExtraOptions(message);
+            message = {}
+            message = telegram.applyExtraOptions("markdown *message*", message);
             assert.equal(message.parse_mode, "Markdown");
 
-            message = { text: "markdown _message_" }
-            message = telegram.applyExtraOptions(message);
+            message = {}
+            message = telegram.applyExtraOptions("markdown _message_", message);
             assert.equal(message.parse_mode, "Markdown");
 
-            message = { text: "markdown `message`" }
-            message = telegram.applyExtraOptions(message);
+            message = {}
+            message = telegram.applyExtraOptions("markdown `message`", message);
             assert.equal(message.parse_mode, "Markdown");
 
-            message = { text: "markdown [message](http://link.com)" }
-            message = telegram.applyExtraOptions(message);
+            message = {}
+            message = telegram.applyExtraOptions("markdown [message](http://link.com)", message);
             assert.equal(message.parse_mode, "Markdown");
 
         });
 
         it("should apply any extra options passed the message envelope", function () {
 
-            var message = { text: "test" }
+            var message = {}
             var extra = { extra: true, nested: { extra: true } };
-            message = telegram.applyExtraOptions(message, extra);
+            message = telegram.applyExtraOptions("test", message, extra);
 
             assert.equal(extra.extra, message.extra);
             assert.equal(extra.nested.extra, message.nested.extra);
 
             // Mock the API object
             telegram.api = {
-                invoke: function (method, opts, cb) {
-                    assert.equal(extra.extra, opts.extra);
-                    assert.equal(extra.nested.extra, opts.nested.extra);
-                    cb.apply(this, [null, {}]);
+                sendMessage: function (chat_id, text, opts) {
+                  assert.equal(extra.extra, opts.extra);
+                  assert.equal(extra.nested.extra, opts.nested.extra);
+                  return Promise.resolve({});
                 }
             };
 
@@ -172,15 +173,18 @@ describe('Telegram', function() {
 
             // Mock the API object
             telegram.api = {
-                invoke: function (method, opts, cb) {
-                    assert.equal(opts.text.length, 4096);
+                sendMessage: function (chat_id, text, opts) {
+                    assert.equal(text.length, 4096);
                     called++;
-                    cb.apply(this, [null, {}]);
+                    return Promise.resolve({});
                 }
             };
 
-            telegram.send({ room: 1 }, message);
-            assert.equal(called, 1);
+            return telegram
+              .send({ room: 1 }, message)
+              .then(function () {
+                assert.equal(called, 1);
+              });
         });
 
         it('should split messages when they are above 4096 characters', function () {
@@ -192,16 +196,19 @@ describe('Telegram', function() {
 
             // Mock the API object
             telegram.api = {
-                invoke: function (method, opts, cb) {
+                sendMessage: function (chat_id, text, opts) {
                     var offset = called * 4096;
-                    assert.equal(opts.text.length, message.substring(offset, offset + 4096).length);
+                    assert.equal(text.length, message.substring(offset, offset + 4096).length);
                     called++;
-                    cb.apply(this, [null, {}]);
+                    return Promise.resolve({});
                 }
             };
 
-            telegram.send({ room: 1 }, message);
-            assert.equal(called, 2);
+            return telegram
+              .send({ room: 1 }, message)
+              .then(function () {
+                  assert.equal(called, 2);
+              });
         });
 
         it('should not split messages on new line characters', function () {
@@ -222,16 +229,19 @@ describe('Telegram', function() {
 
             // Mock the API object
             telegram.api = {
-                invoke: function (method, opts, cb) {
+                sendMessage: function (chat_id, text, opts) {
                     var offset = called * 4096;
-                    assert.equal(opts.text.length, message.substring(offset, offset + 4096).length);
+                    assert.equal(text.length, message.substring(offset, offset + 4096).length);
                     called++;
-                    cb.apply(this, [null, {}]);
+                    return Promise.resolve({});
                 }
             };
 
-            telegram.send({ room: 1 }, message);
-            assert.equal(called, 2);
+            return telegram
+              .send({ room: 1 }, message)
+              .then(function () {
+                  assert.equal(called, 2);
+              });
         });
     });
 });

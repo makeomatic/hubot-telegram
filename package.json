@@ -1,14 +1,14 @@
 {
-  "name": "hubot-telegram",
+  "name": "hubot-adapter-telegram",
   "version": "0.1.0",
   "description": "Hubot adapter for Telegram",
   "main": "./src/telegram",
   "scripts": {
-    "test": "node_modules\\.bin\\mocha --compilers coffee:coffee-script/register"
+    "test": "TELEGRAM_TOKEN=token mocha --compilers coffee:coffee-script/register"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/lukefx/hubot-telegram.git"
+    "url": "https://github.com/makeomatic/hubot-telegram.git"
   },
   "keywords": [
     "hubot",
@@ -17,21 +17,24 @@
     "telegram hubot",
     "hubot telegram"
   ],
-  "author": "Luca Simone <info@lucasimone.info>",
+  "author": "Vitaly Aminev <v@makeomatic.ru>",
   "contributors": [
-    "Chris Brand <chris@chrisbrand.co.za> (http://www.chrisbrand.co.za)"
+    "Chris Brand <chris@chrisbrand.co.za> (http://www.chrisbrand.co.za)",
+    "Luca Simone <info@lucasimone.info>"
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/lukefx/hubot-telegram/issues"
+    "url": "https://github.com/makeomatic/hubot-telegram/issues"
   },
-  "homepage": "https://github.com/lukefx/hubot-telegram",
+  "homepage": "https://github.com/makeomatic/hubot-telegram",
   "dependencies": {
-    "telegrambot": "*"
+    "node-telegram-bot-api": "^0.21.1",
+    "bluebird": "^3.4.0"
   },
   "devDependencies": {
-    "hubot": "*",
     "coffee-script": "*",
-    "mocha": "*"
+    "hubot": "*",
+    "mocha": "*",
+    "debug": "*"
   }
 }

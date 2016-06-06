@@ -1,5 +1,6 @@
-{Robot, Adapter, TextMessage, EnterMessage, LeaveMessage, TopicMessage, CatchAllMessage, User} = require 'hubot'
-telegrambot = require 'telegrambot'
+{ Robot, Adapter, TextMessage, EnterMessage, LeaveMessage, TopicMessage, CatchAllMessage, User } = require 'hubot'
+TelegramBot = require 'node-telegram-bot-api'
+Promise = require 'bluebird'
 
 class Telegram extends Adapter
 
@@ -7,27 +8,46 @@ class Telegram extends Adapter
         super
         self = @
 
-        @token      = process.env['TELEGRAM_TOKEN']
-        @webhook    = process.env['TELEGRAM_WEBHOOK']
-        @interval   = process.env['TELEGRAM_INTERVAL'] || 2000
-        @offset     = 0
-        @api        = new telegrambot(@token)
+        # envs
+        @token = process.env.TELEGRAM_TOKEN
+
+        # webhooks
+        @webhook = process.env.TELEGRAM_WEBHOOK || false
+        @webhook_ca = process.env.TELEGRAM_WEBHOOK_CA
+        @webhook_opts = {
+          cert: process.env.TELEGRAM_WEBHOOK_PORT || 8443,
+          key: process.env.TELEGRAM_WEBHOOK_CERT,
+          port: process.env.TELEGRAM_WEBHOOK_KEY
+        }
+
+        # polling
+        @interval = process.env.TELEGRAM_INTERVAL || 2000
+
+        # opts
+        @offset = 0
+        @opts = {
+          webhook: if @webhook then @webhook_opts else false,
+          polling: if @webhook then false else { @interval }
+        }
+
+        @api = new TelegramBot(@token, @opts)
 
         @robot.logger.info "Telegram Adapter Bot " + @token + " Loaded..."
 
         # Get the bot information
-        @api.invoke 'getMe', {}, (err, result) ->
-            if (err)
-                self.emit 'error', err
-            else
-                self.bot_id = result.id
-                self.bot_username = result.username
-                self.bot_firstname = result.first_name
-                self.robot.logger.info "Telegram Bot Identified: " + self.bot_firstname
+        @api
+          .getMe()
+          .then (result) =>
+              @bot_id = result.id
+              @bot_username = result.username
+              @bot_firstname = result.first_name
+              @robot.logger.info "Telegram Bot Identified: " + @bot_firstname
 
-                if self.bot_username != self.robot.name
-                    self.robot.logger.warning "It is advised to use the same bot name as your Telegram Bot: " + self.bot_username
-                    self.robot.logger.warning "Having a different bot name can result in an inconsistent experience when using @mentions"
+              unless @bot_username is @robot.name
+                  @robot.logger.warning "It is advised to use the same bot name as your Telegram Bot: " + @bot_username
+                  @robot.logger.warning "Having a different bot name can result in an inconsistent experience when using @mentions"
+          .catch (err) =>
+              @emit 'error', err
 
     ###*
     # Clean up the message text to remove duplicate mentions of the
@@ -45,7 +65,7 @@ class Telegram extends Adapter
             # Strip out the stuff we don't need.
             text = text.replace(/^\//g, '').trim()
 
-            text = text.replace(new RegExp('^@?' + @robot.name.toLowerCase(), 'gi'), '');
+            text = text.replace(new RegExp('^@?' + @robot.name.toLowerCase(), 'gi'), '')
             text = text.replace(new RegExp('^@?' + @robot.alias.toLowerCase(), 'gi'), '') if @robot.alias
             text = @robot.name + ' ' + text.trim()
         else
@@ -62,9 +82,7 @@ class Telegram extends Adapter
     #
     # @return object
     ###
-    applyExtraOptions: (message, extra) ->
-
-        text = message.text
+    applyExtraOptions: (text, message = {}, extra) ->
         autoMarkdown = /\*.+\*/.test(text) or /_.+_/.test(text) or /\[.+\]\(.+\)/.test(text) or /`.+`/.test(text)
 
         if autoMarkdown
@@ -115,146 +133,131 @@ class Telegram extends Adapter
     ###*
     # Abstract send interaction with the Telegram API
     ###
-    apiSend: (opts, cb) ->
-        @self = @
-        chunks = opts.text.match /[^]{1,4096}/g
+    apiSend: (chat_id, text, opts) ->
+        chunks = text.match /[^]{1,4096}/g
 
-        @robot.logger.debug "Message length: " + opts.text.length
+        @robot.logger.debug "Message length: " + text.length
         @robot.logger.debug "Message parts: " + chunks.length
 
-        # Chunk message delivery when required
-        send = (cb) =>
-            unless chunks.length == 0
-                current = chunks.shift()
-                opts.text = current
-
-                @api.invoke 'sendMessage', opts, (err, message) =>
-                    # Forward the callback to the original handler
-                    cb.apply @, [err, message]
-
-                    send cb
-
-        # Start the recursive chunking cycle
-        send cb
+        Promise
+          .mapSeries chunks, (current) => @api.sendMessage chat_id, current, opts
 
     ###*
     # Send a message to a specific room via the Telegram API
     ###
     send: (envelope, strings...) ->
-        self = @
         text = strings.join()
-        data = @applyExtraOptions({ chat_id: envelope.room, text: text }, envelope.telegram);
+        @robot.logger.debug "Input text length #{text.length}"
+        data = @applyExtraOptions(text, {}, envelope.telegram)
 
-        @apiSend data, (err, message) =>
-            if (err)
-                self.emit 'error', err
-            else
-                self.robot.logger.info "Sending message to room: " + envelope.room
+        @apiSend envelope.room, text, data
+          .then () => @robot.logger.info "Sending message to room: " + envelope.room
+          .catch (err) => @emit 'error', err
 
     ###*
     # The only difference between send() and reply() is that we add the "reply_to_message_id" parameter when
     # calling the API
     ###
     reply: (envelope, strings...) ->
-        self = @
         text = strings.join()
-        data = @applyExtraOptions({ chat_id: envelope.room, text: text, reply_to_message_id: envelope.message.id }, envelope.telegram);
+        data = @applyExtraOptions(text, { reply_to_message_id: envelope.message.id }, envelope.telegram)
 
-        @apiSend data, (err, message) =>
-            if (err)
-                self.emit 'error', err
-            else
-                self.robot.logger.info "Reply message to room/message: " + envelope.room + "/" + envelope.message.id
+        @apiSend envelope.room, text, data
+          .then (message) => @robot.logger.info "Reply message to room/message: " + envelope.room + "/" + envelope.message.id
+          .catch (err) => @emit 'error', err
 
     ###*
     # "Private" method to handle a new update received via a webhook
     # or poll update.
     ###
-    handleUpdate: (update) ->
-    
-        @robot.logger.debug update
-
-        message = update.message
+    handleMessage: (message) ->
+        @robot.logger.debug message
         @robot.logger.info "Receiving message_id: " + message.message_id
 
         # Text event
         if (message.text)
-            text = @cleanMessageText message.text, message.chat.id
-
-            @robot.logger.debug "Received message: " + message.from.username + " said '" + text + "'"
-
-            user = @createUser message.from, message.chat
-            @receive new TextMessage user, text, message.message_id
+            @handleText message
 
         # Join event
         else if message.new_chat_participant
-            user = @createUser message.new_chat_participant, message.chat
-            @robot.logger.info "User " + user.id + " joined chat " + message.chat.id
-            @receive new EnterMessage user, null, message.message_id
+            @handleNewChatParticipant message
 
         # Exit event
         else if message.left_chat_participant
-            user = @createUser message.left_chat_participant, message.chat
-            @robot.logger.info "User " + user.id + " left chat " + message.chat.id
-            @receive new LeaveMessage user, null, message.message_id
+            @handleNewChatParticipant message
 
         # Chat topic event
         else if message.new_chat_title
-            user = @createUser message.from, message.chat
-            @robot.logger.info "User " + user.id + " changed chat " + message.chat.id + " title: " + message.new_chat_title
-            @receive new TopicMessage user, message.new_chat_title, message.message_id
+            @handleNewChatTitle message
 
         else
             message.user = @createUser message.from, message.chat
             @receive new CatchAllMessage message
 
-    run: ->
-        self = @
+    ###
+     * Handles text message
+    ###
+    handleText: (message) ->
+        text = @cleanMessageText message.text, message.chat.id
+        @robot.logger.debug "Received message: " + message.from.username + " said '" + text + "'"
+        user = @createUser message.from, message.chat
+        @receive new TextMessage user, text, message.message_id
 
+    ###
+     * Handles new chat participant event
+    ###
+    handleNewChatParticipant: (message) ->
+        user = @createUser message.new_chat_participant, message.chat
+        @robot.logger.info "User " + user.id + " joined chat " + message.chat.id
+        @receive new EnterMessage user, null, message.message_id
+
+    ###
+     * Handles left chat participant
+    ###
+    handleLeftChatParticipant: (message) ->
+        user = @createUser message.left_chat_participant, message.chat
+        @robot.logger.info "User " + user.id + " left chat " + message.chat.id
+        @receive new LeaveMessage user, null, message.message_id
+
+    ###
+     * Handles chat title change
+    ###
+    handleNewChatTitle: (message) ->
+        user = @createUser message.from, message.chat
+        @robot.logger.info "User " + user.id + " changed chat " + message.chat.id + " title: " + message.new_chat_title
+        @receive new TopicMessage user, message.new_chat_title, message.message_id
+
+    ###
+     * Additional work after startup is successful
+    ###
+    started: ->
+        @robot.logger.info "Telegram Adapter Started..."
+        @emit "connected"
+        @api.on "message", msg => @handleUpdate msg
+
+    ###
+     * Called when hubot starts
+    ###
+    run: ->
         unless @token
             @emit 'error', new Error 'The environment variable "TELEGRAM_TOKEN" is required.'
 
-        #Listen for Telegram API invokes from other scripts
-        @robot.on "telegram:invoke", (method, opts, cb) ->
-            self.api.invoke method, opts, cb
+        # Listen for Telegram API invokes from other scripts
+        @robot.on "telegram:invoke", (method, args..., cb) =>
+            @api[method].apply(@api, args).asCallback(cb)
 
+        opts = []
         if @webhook
-
             endpoint = @webhook + '/' + @token
             @robot.logger.debug 'Listening on ' + endpoint
-
-            @api.invoke 'setWebHook', { url: endpoint }, (err, result) ->
-                if (err)
-                    self.emit 'error', err
-
-            @robot.router.post "/" + @token, (req, res) =>
-                if req.body.message
-                    self.handleUpdate req.body
-
-                res.send 'OK'
-
+            opts.push endpoint, @webhook_ca
         else
-	    # Clear Webhook
-            @api.invoke 'setWebHook', { url: '' }, (err, result) ->
-                if (err)
-                    self.emit 'error', err
+            @robot.logger.debug 'Clearing webhook'
+            opts.push ''
 
-            setInterval ->
+        @api
+          .setWebHook opts...
+          .then () => @started()
+          .catch (err) => @emit 'error', err
 
-                self.api.invoke 'getUpdates', { offset: self.getLastOffset(), limit: 10 }, (err, result) ->
-
-                    if (err)
-                        self.emit 'error', err
-                    else
-                        self.offset = result[result.length-1].update_id if result.length
-
-                        for msg in result
-                            self.handleUpdate msg
-
-            , @interval
-
-        @robot.logger.info "Telegram Adapter Started..."
-        @emit "connected"
-
-exports.use = (robot) ->
-    new Telegram robot
+exports.use = (robot) -> new Telegram robot

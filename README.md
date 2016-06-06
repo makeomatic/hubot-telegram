@@ -1,32 +1,28 @@
 # Hubot Telegram Adapter
 
-[![Build Status](https://travis-ci.org/lukefx/hubot-telegram.svg?branch=feature-issue-5)](https://travis-ci.org/lukefx/hubot-telegram)
-
-[Hubot](https://hubot.github.com/docs/) adapter for interfacting with the [Telegram Bot API](https://core.telegram.org/bots/api)
+[Hubot](https://hubot.github.com/docs/) adapter for interfacing with the [Telegram Bot API](https://core.telegram.org/bots/api)
 
 ## Installation & Usage
 
 First of read the docs on how to create a new [Telegram Bot](https://core.telegram.org/bots#botfather). Once you have a bot created, follow these steps:
 
-* `npm install --save hubot-telegram`
+* `npm install --save hubot-adapter-telegram`
 * Set the environment variables specified in **Configuration**
-* Run hubot `bin/hubot -a telegram`
+* Run hubot `bin/hubot -a adapter-telegram`
 
 ## Configuration
 
 This adapter uses the following environment variables:
 
-**TELEGRAM_TOKEN** (required)
-
-The token that the [BotFather](https://core.telegram.org/bots#botfather) gives you
-
-**TELEGRAM_WEBHOOK** (optional)
-
-You can specify a [webhook](https://core.telegram.org/bots/api#setwebhook) URL. The adapter will register TELEGRAM_WEBHOOK/TELEGRAM_TOKEN with Telegram and listen there.
-
-**TELEGRAM_INTERVAL** (optional)
-
-You can specify the interval (in milliseconds) in which the adapter will poll Telegram for updates. This option only applies if you are not using a [webhook](https://core.telegram.org/bots/api#setwebhook).
+| Env variable     | Description  | Default  | Required |
+| -----------------|:-------------|---------:|---------:|
+| TELEGRAM_TOKEN   | The token that the [BotFather](https://core.telegram.org/bots#botfather) gives you | | yes |
+| TELEGRAM_WEBHOOK | You can specify a [webhook](https://core.telegram.org/bots/api#setwebhook) URL. The adapter will register TELEGRAM_WEBHOOK/TELEGRAM_TOKEN with Telegram and listen there. | | no |
+| TELEGRAM_INTERVAL | You can specify the interval (in milliseconds) in which the adapter will poll Telegram for updates. This option only applies if you are not using a [webhook](https://core.telegram.org/bots/api#setwebhook). | 2000 | no |
+| TELEGRAM_WEBHOOK_PORT | creates webserver on this port when webhook is enabled | 8443 | no
+| TELEGRAM_WEBHOOK_CERT | if passed with TELEGRAM_WEBHOOK_KEY creates https server | | no |
+| TELEGRAM_WEBHOOK_KEY | if passed with TELEGRAM_WEBHOOK_CERT creates https server | | no |
+| TELEGRAM_WEBHOOK_CA | if passed with TELEGRAM_WEBHOOK posts this as public key to telegram allowing for self-signed certificates | | no |
 
 ## Telegram Specific Functionality (ie. Stickers, Images)
 
@@ -35,12 +31,9 @@ If you want to create a script that relies on specific Telegram functionality th
 ``` nodejs
 
 module.exports = function (robot) {
-
     robot.hear(/send sticker/i, function (res) {
-
         # https://core.telegram.org/bots/api#sendsticker
-
-        robot.emit('telegram:invoke', 'sendSticker', { chat_id: xxx, sticker: 'sticker_id' }, function (error, response) {
+        robot.emit('telegram:invoke', 'sendSticker', chat_id, 'sticker_id', function (error, response) {
             console.log(error);
             console.log(response);
         });
@@ -67,5 +60,6 @@ robot.respond(/(.*)/i, function (res) {
 
 ## Contributors
 
+* Vitaly Aminev - [https://github.com/avvs](https://github.com/avvs)
 * Luke Simone - [https://github.com/lukefx](https://github.com/lukefx)
 * Chris Brand - [https://github.com/arcturial](https://github.com/arcturial)

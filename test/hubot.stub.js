@@ -3,7 +3,7 @@
 // in our tests
 
 // Function that does/return nothing
-var void_func = function () {};
+var void_func = require('debug')('hubot-telegram:mocha');
 
 module.exports = {
     name: "TestBot",
