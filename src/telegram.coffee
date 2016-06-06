@@ -1,3 +1,25 @@
+# Description:
+#   Adds telegram adapter to hubot
+#
+# Configuration:
+#   TELEGRAM_TOKEN *
+#     must be provided, otherwise will throw
+#   TELEGRAM_WEBHOOK
+#     get efficient updates instead of polling for messages, must be an url without
+#     trailing slash and path, example: https://hubot.example.com
+#   TELEGRAM_WEBHOOK_CA
+#     public key of certificate authority, used to check webhook url certificate
+#   TELEGRAM_WEBHOOK_PORT
+#     defaults to 8443. When `TELEGRAM_WEBHOOK` is specified a server will start on that port
+#   TELEGRAM_WEBHOOK_CERT
+#   TELEGRAM_WEBHOOK_KEY
+#     ssl public certificate and private key respectively, both strings (PEM)
+#   TELEGRAM_INTERVAL
+#     polling interval when `TELEGRAM_WEBHOOK` is not specified
+#
+# Commands:
+#   None
+
 { Robot, Adapter, TextMessage, EnterMessage, LeaveMessage, TopicMessage, CatchAllMessage, User } = require 'hubot'
 TelegramBot = require 'node-telegram-bot-api'
 Promise = require 'bluebird'
