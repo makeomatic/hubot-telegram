@@ -255,7 +255,7 @@ class Telegram extends Adapter
     started: ->
         @robot.logger.info "Telegram Adapter Started..."
         @emit "connected"
-        @api.on "message", (msg) => @handleUpdate msg
+        @api.on "message", (msg) => @handleMessage msg
 
     ###
      * Called when hubot starts
