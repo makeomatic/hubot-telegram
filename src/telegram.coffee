@@ -161,8 +161,9 @@ class Telegram extends Adapter
         @robot.logger.debug "Message length: " + text.length
         @robot.logger.debug "Message parts: " + chunks.length
 
-        Promise
-          .mapSeries chunks, (current) => @api.sendMessage chat_id, current, opts
+        Promise.mapSeries chunks, (current) =>
+            @robot.logger.debug "sending #{current} to #{chat_id} with opts %j", opts
+            @api.sendMessage chat_id, current, opts
 
     ###*
     # Send a message to a specific room via the Telegram API
