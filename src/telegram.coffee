@@ -105,10 +105,10 @@ class Telegram extends Adapter
     # @return object
     ###
     applyExtraOptions: (text, message = {}, extra) ->
-        autoMarkdown = /\*.+\*/.test(text) or /_.+_/.test(text) or /\[.+\]\(.+\)/.test(text) or /`.+`/.test(text)
-
-        if autoMarkdown
-            message.parse_mode = 'Markdown'
+        # autoMarkdown = /\*.+\*/.test(text) or /_.+_/.test(text) or /\[.+\]\(.+\)/.test(text) or /`.+`/.test(text)
+        #
+        # if autoMarkdown
+        #     message.parse_mode = 'Markdown'
 
         if extra?
             for key, value of extra
@@ -198,7 +198,7 @@ class Telegram extends Adapter
         @robot.logger.info "Receiving message_id: " + message.message_id
 
         # Text event
-        if (message.text)
+        if message.text
             @handleText message
 
         # Join event
