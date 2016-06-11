@@ -48,7 +48,7 @@ class Telegram extends Adapter
         # opts
         @offset = 0
         @opts = {
-          webhook: if @webhook then @webhook_opts else false,
+          webHook: if @webhook then @webhook_opts else false,
           polling: if @webhook then false else { @interval }
         }
 
