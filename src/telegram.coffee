@@ -37,9 +37,9 @@ class Telegram extends Adapter
         @webhook = process.env.TELEGRAM_WEBHOOK || false
         @webhook_ca = process.env.TELEGRAM_WEBHOOK_CA
         @webhook_opts = {
-          cert: parseInt(process.env.TELEGRAM_WEBHOOK_PORT || 8443, 10),
-          key: process.env.TELEGRAM_WEBHOOK_CERT,
-          port: process.env.TELEGRAM_WEBHOOK_KEY
+          cert: process.env.TELEGRAM_WEBHOOK_CERT,
+          key: process.env.TELEGRAM_WEBHOOK_KEY,
+          port: parseInt(process.env.TELEGRAM_WEBHOOK_PORT || 8443, 10)
         }
 
         # polling
